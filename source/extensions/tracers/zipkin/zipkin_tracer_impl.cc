@@ -100,7 +100,7 @@ Driver::Driver(const envoy::config::trace::v3::ZipkinConfig& zipkin_config,
   });
 }
 
-Tracing::SpanPtr Driver::startSpan(const Tracing::Config& config, Http::HeaderMap& request_headers,
+Tracing::SpanPtr Driver::startSpan(const Tracing::Config& config, Http::RequestHeaderMap& request_headers,
                                    const std::string&, SystemTime start_time,
                                    const Tracing::Decision tracing_decision) {
   Tracer& tracer = *tls_->getTyped<TlsTracer>().tracer_;

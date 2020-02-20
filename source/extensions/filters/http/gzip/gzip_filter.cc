@@ -153,7 +153,7 @@ Http::FilterTrailersStatus GzipFilter::encodeTrailers(Http::ResponseTrailerMap&)
   return Http::FilterTrailersStatus::Continue;
 }
 
-bool GzipFilter::hasCacheControlNoTransform(Http::HeaderMap& headers) const {
+bool GzipFilter::hasCacheControlNoTransform(Http::ResponseHeaderMap& headers) const {
   const Http::HeaderEntry* cache_control = headers.CacheControl();
   if (cache_control) {
     return StringUtil::caseFindToken(cache_control->value().getStringView(), ",",

@@ -73,7 +73,7 @@ public:
    * @param statuses supplies the per-stream-request match status vector which must be the same
    *                 size as the match tree vector (see above).
    */
-  virtual void onHttpRequestHeaders(const Http::HeaderMap& request_headers,
+  virtual void onHttpRequestHeaders(const Http::RequestHeaderMap& request_headers,
                                     MatchStatusVector& statuses) const PURE;
 
   /**
@@ -91,7 +91,7 @@ public:
    * @param statuses supplies the per-stream-request match status vector which must be the same
    *                 size as the match tree vector (see above).
    */
-  virtual void onHttpResponseHeaders(const Http::HeaderMap& response_headers,
+  virtual void onHttpResponseHeaders(const Http::ResponseHeaderMap& response_headers,
                                      MatchStatusVector& statuses) const PURE;
 
   /**
@@ -100,7 +100,7 @@ public:
    * @param statuses supplies the per-stream-request match status vector which must be the same
    *                 size as the match tree vector (see above).
    */
-  virtual void onHttpResponseTrailers(const Http::HeaderMap& response_trailers,
+  virtual void onHttpResponseTrailers(const Http::ResponseTrailerMap& response_trailers,
                                       MatchStatusVector& statuses) const PURE;
 
   /**
@@ -134,7 +134,7 @@ public:
     updateLocalStatus(statuses,
                       [](Matcher& m, MatchStatusVector& statuses) { m.onNewStream(statuses); });
   }
-  void onHttpRequestHeaders(const Http::HeaderMap& request_headers,
+  void onHttpRequestHeaders(const Http::RequestHeaderMap& request_headers,
                             MatchStatusVector& statuses) const override {
     updateLocalStatus(statuses, [&request_headers](Matcher& m, MatchStatusVector& statuses) {
       m.onHttpRequestHeaders(request_headers, statuses);
@@ -146,13 +146,13 @@ public:
       m.onHttpRequestTrailers(request_trailers, statuses);
     });
   }
-  void onHttpResponseHeaders(const Http::HeaderMap& response_headers,
+  void onHttpResponseHeaders(const Http::ResponseHeaderMap& response_headers,
                              MatchStatusVector& statuses) const override {
     updateLocalStatus(statuses, [&response_headers](Matcher& m, MatchStatusVector& statuses) {
       m.onHttpResponseHeaders(response_headers, statuses);
     });
   }
-  void onHttpResponseTrailers(const Http::HeaderMap& response_trailers,
+  void onHttpResponseTrailers(const Http::ResponseTrailerMap& response_trailers,
                               MatchStatusVector& statuses) const override {
     updateLocalStatus(statuses, [&response_trailers](Matcher& m, MatchStatusVector& statuses) {
       m.onHttpResponseTrailers(response_trailers, statuses);
@@ -208,10 +208,10 @@ public:
 
   // Extensions::Common::Tap::Matcher
   void onNewStream(MatchStatusVector&) const override {}
-  void onHttpRequestHeaders(const Http::HeaderMap&, MatchStatusVector&) const override {}
-  void onHttpRequestTrailers(const Http::HeaderMap&, MatchStatusVector&) const override {}
-  void onHttpResponseHeaders(const Http::HeaderMap&, MatchStatusVector&) const override {}
-  void onHttpResponseTrailers(const Http::HeaderMap&, MatchStatusVector&) const override {}
+  void onHttpRequestHeaders(const Http::RequestHeaderMap&, MatchStatusVector&) const override {}
+  void onHttpRequestTrailers(const Http::RequestTrailerMap&, MatchStatusVector&) const override {}
+  void onHttpResponseHeaders(const Http::ResponseHeaderMap&, MatchStatusVector&) const override {}
+  void onHttpResponseTrailers(const Http::ResponseTrailerMap&, MatchStatusVector&) const override {}
 };
 
 /**
@@ -250,7 +250,7 @@ public:
   using HttpHeaderMatcherBase::HttpHeaderMatcherBase;
 
   // Extensions::Common::Tap::Matcher
-  void onHttpRequestHeaders(const Http::HeaderMap& request_headers,
+  void onHttpRequestHeaders(const Http::RequestHeaderMap& request_headers,
                             MatchStatusVector& statuses) const override {
     matchHeaders(request_headers, statuses);
   }
@@ -278,7 +278,7 @@ public:
   using HttpHeaderMatcherBase::HttpHeaderMatcherBase;
 
   // Extensions::Common::Tap::Matcher
-  void onHttpResponseHeaders(const Http::HeaderMap& response_headers,
+  void onHttpResponseHeaders(const Http::ResponseHeaderMap& response_headers,
                              MatchStatusVector& statuses) const override {
     matchHeaders(response_headers, statuses);
   }
@@ -292,7 +292,7 @@ public:
   using HttpHeaderMatcherBase::HttpHeaderMatcherBase;
 
   // Extensions::Common::Tap::Matcher
-  void onHttpResponseTrailers(const Http::HeaderMap& response_trailers,
+  void onHttpResponseTrailers(const Http::ResponseTrailerMap& response_trailers,
                               MatchStatusVector& statuses) const override {
     matchHeaders(response_trailers, statuses);
   }

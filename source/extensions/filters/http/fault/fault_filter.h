@@ -249,10 +249,11 @@ private:
   bool matchesDownstreamNodes(const Http::HeaderMap& headers);
   bool isAbortEnabled();
   bool isDelayEnabled();
-  absl::optional<std::chrono::milliseconds> delayDuration(const Http::HeaderMap& request_headers);
+  absl::optional<std::chrono::milliseconds>
+  delayDuration(const Http::RequestHeaderMap& request_headers);
   uint64_t abortHttpStatus();
   void maybeIncActiveFaults();
-  void maybeSetupResponseRateLimit(const Http::HeaderMap& request_headers);
+  void maybeSetupResponseRateLimit(const Http::RequestHeaderMap& request_headers);
 
   FaultFilterConfigSharedPtr config_;
   Http::StreamDecoderFilterCallbacks* decoder_callbacks_{};

@@ -179,7 +179,7 @@ void ExtractorImpl::addQueryParamConfig(const std::string& issuer, const std::st
   param_location_spec.specified_issuers_.insert(issuer);
 }
 
-std::vector<JwtLocationConstPtr> ExtractorImpl::extract(const Http::HeaderMap& headers) const {
+std::vector<JwtLocationConstPtr> ExtractorImpl::extract(const Http::RequestHeaderMap& headers) const {
   std::vector<JwtLocationConstPtr> tokens;
 
   // Check header locations first

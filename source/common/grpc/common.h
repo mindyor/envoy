@@ -10,8 +10,10 @@
 #include "envoy/http/header_map.h"
 #include "envoy/http/message.h"
 
+#include "common/common/empty_string.h"
 #include "common/common/hash.h"
 #include "common/grpc/status.h"
+#include "common/http/headers.h"
 #include "common/protobuf/protobuf.h"
 
 #include "absl/types/optional.h"
@@ -32,16 +34,26 @@ class Common {
 public:
   /**
    * @param headers the headers to parse.
-   * @return bool indicating whether content-type is gRPC.
+   * @return bool indicating whether content-type is gRPC. fixfix all
    */
-  static bool hasGrpcContentType(const Http::HeaderMap& headers);
+  template <class T> static bool hasGrpcContentType(const T& headers) {
+    const Http::HeaderEntry* content_type = headers.ContentType();
+    // Content type is gRPC if it is exactly "application/grpc" or starts with
+    // "application/grpc+". Specifically, something like application/grpc-web is not gRPC.
+    return content_type != nullptr &&
+           absl::StartsWith(content_type->value().getStringView(),
+                            Http::Headers::get().ContentTypeValues.Grpc) &&
+           (content_type->value().size() == Http::Headers::get().ContentTypeValues.Grpc.size() ||
+            content_type->value()
+                    .getStringView()[Http::Headers::get().ContentTypeValues.Grpc.size()] == '+');
+  }
 
   /**
    * @param headers the headers to parse.
    * @param bool indicating whether the header is at end_stream.
    * @return bool indicating whether the header is a gRPC response header
    */
-  static bool isGrpcResponseHeader(const Http::HeaderMap& headers, bool end_stream);
+  static bool isGrpcResponseHeader(const Http::ResponseHeaderMap& headers, bool end_stream);
 
   /**
    * Returns the GrpcStatus code from a given set of trailers, if present.
@@ -51,8 +63,21 @@ public:
    * @return absl::optional<Status::GrpcStatus> the parsed status code or InvalidCode if no valid
    * status is found.
    */
-  static absl::optional<Status::GrpcStatus> getGrpcStatus(const Http::HeaderMap& trailers,
-                                                          bool allow_user_defined = false);
+  template <class T>
+  static absl::optional<Status::GrpcStatus> getGrpcStatus(const T& trailers,
+                                                          bool allow_user_defined = false) {
+    const Http::HeaderEntry* grpc_status_header = trailers.GrpcStatus();
+    uint64_t grpc_status_code;
+
+    if (!grpc_status_header || grpc_status_header->value().empty()) {
+      return absl::nullopt;
+    }
+    if (!absl::SimpleAtoi(grpc_status_header->value().getStringView(), &grpc_status_code) ||
+        (grpc_status_code > Status::WellKnownGrpcStatus::MaximumKnown && !allow_user_defined)) {
+      return {Status::WellKnownGrpcStatus::InvalidCode};
+    }
+    return {static_cast<Status::GrpcStatus>(grpc_status_code)};
+  }
 
   /**
    * Returns the GrpcStatus code from the set of trailers, headers, and StreamInfo, if present.
@@ -63,8 +88,8 @@ public:
    * @return absl::optional<Status::GrpcStatus> the parsed status code or absl::nullopt if no status
    * is found
    */
-  static absl::optional<Status::GrpcStatus> getGrpcStatus(const Http::HeaderMap& trailers,
-                                                          const Http::HeaderMap& headers,
+  static absl::optional<Status::GrpcStatus> getGrpcStatus(const Http::ResponseTrailerMap& trailers,
+                                                          const Http::ResponseHeaderMap& headers,
                                                           const StreamInfo::StreamInfo& info,
                                                           bool allow_user_defined = false);
 
@@ -74,7 +99,10 @@ public:
    * @return std::string the gRPC status message or empty string if grpc-message is not present in
    *         trailers.
    */
-  static std::string getGrpcMessage(const Http::HeaderMap& trailers);
+  template <class T> static std::string getGrpcMessage(const T& trailers) {
+    const auto entry = trailers.GrpcMessage();
+    return entry ? std::string(entry->value().getStringView()) : EMPTY_STRING;
+  }
 
   /**
    * Returns the decoded google.rpc.Status message from a given set of trailers, if present.
@@ -93,7 +121,7 @@ public:
    * @return std::chrono::milliseconds the duration in milliseconds. A zero value corresponding to
    *         infinity is returned if 'grpc-timeout' is missing or malformed.
    */
-  static std::chrono::milliseconds getGrpcTimeout(const Http::HeaderMap& request_headers);
+  static std::chrono::milliseconds getGrpcTimeout(const Http::RequestHeaderMap& request_headers);
 
   /**
    * Encode 'timeout' into 'grpc-timeout' format in the grpc-timeout header.
@@ -101,7 +129,8 @@ public:
    * @param headers the HeaderMap in which the grpc-timeout header will be set with the timeout in
    * 'grpc-timeout' format, up to 8 decimal digits and a letter indicating the unit.
    */
-  static void toGrpcTimeout(const std::chrono::milliseconds& timeout, Http::HeaderMap& headers);
+  static void toGrpcTimeout(const std::chrono::milliseconds& timeout,
+                            Http::RequestHeaderMap& headers);
 
   /**
    * Serialize protobuf message with gRPC frame header.

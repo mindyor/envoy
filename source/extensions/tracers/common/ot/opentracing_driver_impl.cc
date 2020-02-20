@@ -36,7 +36,7 @@ private:
 
 class OpenTracingHTTPHeadersReader : public opentracing::HTTPHeadersReader {
 public:
-  explicit OpenTracingHTTPHeadersReader(const Http::HeaderMap& request_headers)
+  explicit OpenTracingHTTPHeadersReader(const Http::RequestHeaderMap& request_headers)
       : request_headers_(request_headers) {}
 
   using OpenTracingCb = std::function<opentracing::expected<void>(opentracing::string_view,
@@ -66,7 +66,7 @@ public:
   }
 
 private:
-  const Http::HeaderMap& request_headers_;
+  const Http::RequestHeaderMap& request_headers_;
 
   static Http::HeaderMap::Iterate headerMapCallback(const Http::HeaderEntry& header,
                                                     void* context) {

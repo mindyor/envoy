@@ -266,9 +266,26 @@ private:
 /**
  * The following defines all headers that Envoy allows direct access to inside of the header map.
  * In practice, these are all headers used during normal Envoy request flow processing. This allows
- * O(1) access to these headers without even a hash lookup.
+ * O(1) access to these headers without even a hash lookup. fixfix
  */
-#define ALL_INLINE_HEADERS(HEADER_FUNC)                                                            \
+#define INLINE_REQ_HEADERS(HEADER_FUNC)                                                            \
+  HEADER_FUNC(ForwardedClientCert)                                                                 \
+  HEADER_FUNC(ForwardedFor)                                                                        \
+  HEADER_FUNC(ForwardedProto)                                                                      \
+  HEADER_FUNC(GrpcTimeout)                                                                         \
+  HEADER_FUNC(Host)                                                                                \
+  HEADER_FUNC(Method)                                                                              \
+  HEADER_FUNC(Path)                                                                                \
+  HEADER_FUNC(Scheme)
+
+#define INLINE_RESP_HEADERS(HEADER_FUNC)                                                           \
+  HEADER_FUNC(Date)                                                                                \
+  HEADER_FUNC(GrpcMessage)                                                                         \
+  HEADER_FUNC(GrpcStatus)                                                                          \
+  HEADER_FUNC(Server)                                                                              \
+  HEADER_FUNC(Status)
+
+#define INLINE_REQ_RESP_HEADERS(HEADER_FUNC)                                                       \
   HEADER_FUNC(Accept)                                                                              \
   HEADER_FUNC(AcceptEncoding)                                                                      \
   HEADER_FUNC(AccessControlRequestHeaders)                                                         \
@@ -286,7 +303,6 @@ private:
   HEADER_FUNC(ContentEncoding)                                                                     \
   HEADER_FUNC(ContentLength)                                                                       \
   HEADER_FUNC(ContentType)                                                                         \
-  HEADER_FUNC(Date)                                                                                \
   HEADER_FUNC(EnvoyAttemptCount)                                                                   \
   HEADER_FUNC(EnvoyDegraded)                                                                       \
   HEADER_FUNC(EnvoyDecoratorOperation)                                                             \
@@ -317,35 +333,27 @@ private:
   HEADER_FUNC(EnvoyUpstreamServiceTime)                                                            \
   HEADER_FUNC(Etag)                                                                                \
   HEADER_FUNC(Expect)                                                                              \
-  HEADER_FUNC(ForwardedClientCert)                                                                 \
-  HEADER_FUNC(ForwardedFor)                                                                        \
-  HEADER_FUNC(ForwardedProto)                                                                      \
   HEADER_FUNC(GrpcAcceptEncoding)                                                                  \
-  HEADER_FUNC(GrpcMessage)                                                                         \
-  HEADER_FUNC(GrpcStatus)                                                                          \
-  HEADER_FUNC(GrpcTimeout)                                                                         \
-  HEADER_FUNC(Host)                                                                                \
   HEADER_FUNC(KeepAlive)                                                                           \
   HEADER_FUNC(LastModified)                                                                        \
   HEADER_FUNC(Location)                                                                            \
-  HEADER_FUNC(Method)                                                                              \
   HEADER_FUNC(NoChunks)                                                                            \
   HEADER_FUNC(Origin)                                                                              \
   HEADER_FUNC(OtSpanContext)                                                                       \
-  HEADER_FUNC(Path)                                                                                \
   HEADER_FUNC(Protocol)                                                                            \
   HEADER_FUNC(ProxyConnection)                                                                     \
   HEADER_FUNC(Referer)                                                                             \
   HEADER_FUNC(RequestId)                                                                           \
-  HEADER_FUNC(Scheme)                                                                              \
-  HEADER_FUNC(Server)                                                                              \
-  HEADER_FUNC(Status)                                                                              \
   HEADER_FUNC(TE)                                                                                  \
   HEADER_FUNC(TransferEncoding)                                                                    \
   HEADER_FUNC(Upgrade)                                                                             \
   HEADER_FUNC(UserAgent)                                                                           \
   HEADER_FUNC(Vary)                                                                                \
   HEADER_FUNC(Via)
+
+#define INLINE_RESP_TRAILERS(HEADER_FUNC)                                                          \
+  HEADER_FUNC(GrpcMessage)                                                                         \
+  HEADER_FUNC(GrpcStatus)
 
 /**
  * The following functions are defined for each inline header above.
@@ -376,8 +384,6 @@ private:
 class HeaderMap {
 public:
   virtual ~HeaderMap() = default;
-
-  ALL_INLINE_HEADERS(DEFINE_INLINE_HEADER)
 
   /**
    * For testing. This is an exact match comparison (order matters).
@@ -610,32 +616,39 @@ public:
     headers.dumpState(os);
     return os;
   }
-
-protected:
-  // In TestHeaderMapImpl and VerifiedHeaderMapImpl, this method is overridden to perform a
-  // time-consuming manual byte size count on each operation to verify the byte size. For prod
-  // HeaderMaps, this verification is skipped.
-  // TODO(asraa): Move this verification out of prod code and wrap virtual HeaderMap methods
-  // in both VerifiedHeaderMapImpl and TestHeaderMapImpl with the verification.
-  virtual void verifyByteSize() {}
 };
 
 using HeaderMapPtr = std::unique_ptr<HeaderMap>;
 
 /**
  * Typed derived classes for all header map types.
- * TODO(mattklein123): In future changes we will be differentiating the implementation between
- *   these classes to both fix bugs and improve performance.
  * TODO(mattklein123): Virtual inheritance is currently required due to a layered implementation.
  *   Consider also removing virtual inheritance once we finish the typed header refactor.
  */
-class RequestHeaderMap : public virtual HeaderMap {};
+class RequestOrResponseHeaderMap : public virtual HeaderMap {
+public:
+  INLINE_REQ_RESP_HEADERS(DEFINE_INLINE_HEADER)
+};
+
+class RequestHeaderMap : public RequestOrResponseHeaderMap {
+public:
+  INLINE_REQ_HEADERS(DEFINE_INLINE_HEADER)
+};
 using RequestHeaderMapPtr = std::unique_ptr<RequestHeaderMap>;
+
 class RequestTrailerMap : public virtual HeaderMap {};
 using RequestTrailerMapPtr = std::unique_ptr<RequestTrailerMap>;
-class ResponseHeaderMap : public virtual HeaderMap {};
+
+class ResponseHeaderMap : public RequestOrResponseHeaderMap {
+public:
+  INLINE_RESP_HEADERS(DEFINE_INLINE_HEADER)
+};
 using ResponseHeaderMapPtr = std::unique_ptr<ResponseHeaderMap>;
-class ResponseTrailerMap : public virtual HeaderMap {};
+
+class ResponseTrailerMap : public virtual HeaderMap {
+public:
+  INLINE_RESP_TRAILERS(DEFINE_INLINE_HEADER)
+};
 using ResponseTrailerMapPtr = std::unique_ptr<ResponseTrailerMap>;
 
 /**

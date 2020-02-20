@@ -670,7 +670,7 @@ void ConnectionManagerImpl::ActiveStream::addAccessLogHandler(
   access_log_handlers_.push_back(handler);
 }
 
-void ConnectionManagerImpl::ActiveStream::chargeStats(const HeaderMap& headers) {
+void ConnectionManagerImpl::ActiveStream::chargeStats(const ResponseHeaderMap& headers) {
   uint64_t response_code = Utility::getResponseStatus(headers);
   stream_info_.response_code_ = response_code;
 

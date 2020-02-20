@@ -64,7 +64,7 @@ public:
    * @return status whether the Transcoder instance are successfully created or not
    */
   ProtobufUtil::Status
-  createTranscoder(const Http::HeaderMap& headers, Protobuf::io::ZeroCopyInputStream& request_input,
+  createTranscoder(const Http::RequestHeaderMap& headers, Protobuf::io::ZeroCopyInputStream& request_input,
                    google::grpc::transcoding::TranscoderInputStream& response_input,
                    std::unique_ptr<google::grpc::transcoding::Transcoder>& transcoder,
                    const Protobuf::MethodDescriptor*& method_descriptor);
@@ -158,7 +158,7 @@ private:
   Http::StreamDecoderFilterCallbacks* decoder_callbacks_{nullptr};
   Http::StreamEncoderFilterCallbacks* encoder_callbacks_{nullptr};
   const Protobuf::MethodDescriptor* method_{nullptr};
-  Http::HeaderMap* response_headers_{nullptr};
+  Http::ResponseHeaderMap* response_headers_{nullptr};
   Grpc::Decoder decoder_;
 
   bool error_{false};

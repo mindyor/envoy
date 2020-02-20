@@ -65,7 +65,7 @@ public:
 protected:
   StreamEncoderImpl(ConnectionImpl& connection, HeaderKeyFormatter* header_key_formatter);
   void setIsContentLengthAllowed(bool value) { is_content_length_allowed_ = value; }
-  void encodeHeadersBase(const HeaderMap& headers, bool end_stream);
+  void encodeHeadersBase(const RequestOrResponseHeaderMap& headers, bool end_stream);
   void encodeTrailersBase(const HeaderMap& headers);
 
   static const std::string CRLF;
@@ -157,11 +157,6 @@ public:
    * Called when the active encoder has completed encoding the outbound half of the stream.
    */
   virtual void onEncodeComplete() PURE;
-
-  /**
-   * Called when headers are encoded.
-   */
-  virtual void onEncodeHeaders(const HeaderMap& headers) PURE;
 
   /**
    * Called when resetStream() has been called on an active stream. In HTTP/1.1 the only
@@ -298,7 +293,7 @@ private:
   /**
    * Send a protocol error response to remote.
    */
-  virtual void sendProtocolError(absl::string_view details = "") PURE;
+  virtual void sendProtocolError(absl::string_view details) PURE;
 
   /**
    * Called when output_buffer_ or the underlying connection go from below a low watermark to over
@@ -356,11 +351,10 @@ private:
    * @param headers the request's headers
    * @throws CodecProtocolException on an invalid url in the request line
    */
-  void handlePath(HeaderMap& headers, unsigned int method);
+  void handlePath(RequestHeaderMap& headers, unsigned int method);
 
   // ConnectionImpl
   void onEncodeComplete() override;
-  void onEncodeHeaders(const HeaderMap&) override {}
   void onMessageBegin() override;
   void onUrl(const char* data, size_t length) override;
   int onHeadersComplete() override;
@@ -423,7 +417,7 @@ private:
 
   // ConnectionImpl
   void onEncodeComplete() override {}
-  void onEncodeHeaders(const HeaderMap& headers) override;
+  //fixfixvoid onEncodeHeaders(const HeaderMap& headers) override;
   void onMessageBegin() override {}
   void onUrl(const char*, size_t) override { NOT_IMPLEMENTED_GCOVR_EXCL_LINE; }
   int onHeadersComplete() override;

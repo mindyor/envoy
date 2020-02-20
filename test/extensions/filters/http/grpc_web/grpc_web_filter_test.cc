@@ -95,7 +95,7 @@ public:
             [=](Buffer::Instance& data, bool) { EXPECT_EQ(expected_message, data.toString()); }));
   }
 
-  void expectRequiredGrpcUpstreamHeaders(const Http::HeaderMap& request_headers) {
+  void expectRequiredGrpcUpstreamHeaders(const Http::RequestHeaderMap& request_headers) {
     EXPECT_EQ(Http::Headers::get().ContentTypeValues.Grpc,
               request_headers.ContentType()->value().getStringView());
     // Ensure we never send content-length upstream

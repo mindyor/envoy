@@ -35,7 +35,7 @@ private:
    */
   std::pair<SpanContext, bool> extractSpanContextFromB3SingleFormat(bool is_sampled);
   bool tryExtractSampledFromB3SingleFormat();
-  const Http::HeaderMap& request_headers_;
+  const Http::RequestHeaderMap& request_headers_;
 };
 
 } // namespace Zipkin

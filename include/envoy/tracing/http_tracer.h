@@ -46,7 +46,7 @@ struct Decision {
  * The context for the custom tag to obtain the tag value.
  */
 struct CustomTagContext {
-  const Http::HeaderMap* request_headers;
+  const Http::RequestHeaderMap* request_headers;
   const StreamInfo::StreamInfo& stream_info;
 };
 
@@ -170,7 +170,7 @@ public:
   /**
    * Start driver specific span.
    */
-  virtual SpanPtr startSpan(const Config& config, Http::HeaderMap& request_headers,
+  virtual SpanPtr startSpan(const Config& config, Http::RequestHeaderMap& request_headers,
                             const std::string& operation_name, SystemTime start_time,
                             const Tracing::Decision tracing_decision) PURE;
 };
@@ -185,7 +185,7 @@ class HttpTracer {
 public:
   virtual ~HttpTracer() = default;
 
-  virtual SpanPtr startSpan(const Config& config, Http::HeaderMap& request_headers,
+  virtual SpanPtr startSpan(const Config& config, Http::RequestHeaderMap& request_headers,
                             const StreamInfo::StreamInfo& stream_info,
                             const Tracing::Decision tracing_decision) PURE;
 };

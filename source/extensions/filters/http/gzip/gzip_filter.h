@@ -147,7 +147,7 @@ private:
   // the logic in these private member functions would be available in another class.
   friend class GzipFilterTest;
 
-  bool hasCacheControlNoTransform(Http::HeaderMap& headers) const;
+  bool hasCacheControlNoTransform(Http::ResponseHeaderMap& headers) const;
   bool isAcceptEncodingAllowed(Http::HeaderMap& headers) const;
   bool isContentTypeAllowed(Http::HeaderMap& headers) const;
   bool isEtagAllowed(Http::HeaderMap& headers) const;

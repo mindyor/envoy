@@ -41,8 +41,8 @@ public:
   }
 
   MOCK_METHOD(void, complete_,
-              (LimitStatus status, const Http::HeaderMap* response_headers_to_add,
-               const Http::HeaderMap* request_headers_to_add));
+              (LimitStatus status, const Http::ResponseHeaderMap* response_headers_to_add,
+               const Http::RequestHeaderMap* request_headers_to_add));
 };
 
 class RateLimitGrpcClientTest : public testing::Test {

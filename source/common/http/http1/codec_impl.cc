@@ -102,7 +102,8 @@ void ResponseEncoderImpl::encode100ContinueHeaders(const ResponseHeaderMap& head
   processing_100_continue_ = false;
 }
 
-void StreamEncoderImpl::encodeHeadersBase(const HeaderMap& headers, bool end_stream) {
+void StreamEncoderImpl::encodeHeadersBase(const RequestOrResponseHeaderMap& headers,
+                                          bool end_stream) {
   bool saw_content_length = false;
   headers.iterate(
       [](const HeaderEntry& header, void* context) -> HeaderMap::Iterate {
@@ -320,7 +321,7 @@ void RequestEncoderImpl::encodeHeaders(const RequestHeaderMap& headers, bool end
   if (method->value() == Headers::get().MethodValues.Head) {
     head_request_ = true;
   }
-  connection_.onEncodeHeaders(headers);
+  //fixfixconnection_.onEncodeHeaders(headers);
   connection_.copyToBuffer(method->value().getStringView().data(), method->value().size());
   connection_.addCharToBuffer(' ');
   connection_.copyToBuffer(path->value().getStringView().data(), path->value().size());
@@ -537,57 +538,8 @@ int ConnectionImpl::onHeadersCompleteBase() {
     // HTTP/1.1 or not.
     protocol_ = Protocol::Http10;
   }
-  HeaderMap& current_headers = headers();
-  if (Utility::isUpgrade(current_headers)) {
-    // Ignore h2c upgrade requests until we support them.
-    // See https://github.com/envoyproxy/envoy/issues/7161 for details.
-    if (current_headers.Upgrade() &&
-        absl::EqualsIgnoreCase(current_headers.Upgrade()->value().getStringView(),
-                               Http::Headers::get().UpgradeValues.H2c)) {
-      ENVOY_CONN_LOG(trace, "removing unsupported h2c upgrade headers.", connection_);
-      current_headers.removeUpgrade();
-      if (current_headers.Connection()) {
-        const auto& tokens_to_remove = caseUnorderdSetContainingUpgradeAndHttp2Settings();
-        std::string new_value = StringUtil::removeTokens(
-            current_headers.Connection()->value().getStringView(), ",", tokens_to_remove, ",");
-        if (new_value.empty()) {
-          current_headers.removeConnection();
-        } else {
-          current_headers.setConnection(new_value);
-        }
-      }
-      current_headers.remove(Headers::get().Http2Settings);
-    } else {
-      ENVOY_CONN_LOG(trace, "codec entering upgrade mode.", connection_);
-      handling_upgrade_ = true;
-    }
-  } else if (connection_header_sanitization_ && current_headers.Connection()) {
-    // If we fail to sanitize the request, return a 400 to the client
-    if (!Utility::sanitizeConnectionHeader(current_headers)) {
-      absl::string_view header_value = current_headers.Connection()->value().getStringView();
-      ENVOY_CONN_LOG(debug, "Invalid nominated headers in Connection: {}", connection_,
-                     header_value);
-      error_code_ = Http::Code::BadRequest;
-      sendProtocolError(Http1ResponseCodeDetails::get().ConnectionHeaderSanitization);
-      throw CodecProtocolException("Invalid nominated headers in Connection.");
-    }
-  }
 
-  // Per https://tools.ietf.org/html/rfc7230#section-3.3.1 Envoy should reject
-  // transfer-codings it does not understand.
-  if (current_headers.TransferEncoding()) {
-    absl::string_view encoding = current_headers.TransferEncoding()->value().getStringView();
-    if (Runtime::runtimeFeatureEnabled(
-            "envoy.reloadable_features.reject_unsupported_transfer_encodings") &&
-        !absl::EqualsIgnoreCase(encoding, Headers::get().TransferEncodingValues.Identity) &&
-        !absl::EqualsIgnoreCase(encoding, Headers::get().TransferEncodingValues.Chunked)) {
-      error_code_ = Http::Code::NotImplemented;
-      sendProtocolError();
-      throw CodecProtocolException("http/1.1 protocol error: unsupported transfer encoding");
-    }
-  }
-
-  int rc = onHeadersComplete();
+  const int rc = onHeadersComplete();
   header_parsing_state_ = HeaderParsingState::Done;
 
   // Returning 2 informs http_parser to not expect a body or further data on this connection.
@@ -652,7 +604,7 @@ void ServerConnectionImpl::onEncodeComplete() {
   }
 }
 
-void ServerConnectionImpl::handlePath(HeaderMap& headers, unsigned int method) {
+void ServerConnectionImpl::handlePath(RequestHeaderMap& headers, unsigned int method) {
   HeaderString path(Headers::get().Path);
 
   bool is_connect = (method == HTTP_CONNECT);
@@ -696,12 +648,61 @@ void ServerConnectionImpl::handlePath(HeaderMap& headers, unsigned int method) {
 }
 
 int ServerConnectionImpl::onHeadersComplete() {
+  auto& headers = absl::get<RequestHeaderMapPtr>(headers_or_trailers_);
+  ENVOY_CONN_LOG(trace, "Server: onHeadersComplete size={}", connection_, headers->size());
+
+  if (Utility::isUpgrade(*headers)) {
+    // Ignore h2c upgrade requests until we support them.
+    // See https://github.com/envoyproxy/envoy/issues/7161 for details.
+    if (headers->Upgrade() && absl::EqualsIgnoreCase(headers->Upgrade()->value().getStringView(),
+                                                     Http::Headers::get().UpgradeValues.H2c)) {
+      ENVOY_CONN_LOG(trace, "removing unsupported h2c upgrade headers.", connection_);
+      headers->removeUpgrade();
+      if (headers->Connection()) {
+        const auto& tokens_to_remove = caseUnorderdSetContainingUpgradeAndHttp2Settings();
+        std::string new_value = StringUtil::removeTokens(
+            headers->Connection()->value().getStringView(), ",", tokens_to_remove, ",");
+        if (new_value.empty()) {
+          headers->removeConnection();
+        } else {
+          headers->setConnection(new_value);
+        }
+      }
+      headers->remove(Headers::get().Http2Settings);
+    } else {
+      ENVOY_CONN_LOG(trace, "codec entering upgrade mode.", connection_);
+      handling_upgrade_ = true;
+    }
+  } else if (connection_header_sanitization_ && headers->Connection()) {
+    // If we fail to sanitize the request, return a 400 to the client
+    if (!Utility::sanitizeConnectionHeader(*headers)) {
+      absl::string_view header_value = headers->Connection()->value().getStringView();
+      ENVOY_CONN_LOG(debug, "Invalid nominated headers in Connection: {}", connection_,
+                     header_value);
+      error_code_ = Http::Code::BadRequest;
+      sendProtocolError(Http1ResponseCodeDetails::get().ConnectionHeaderSanitization);
+      throw CodecProtocolException("Invalid nominated headers in Connection.");
+    }
+  }
+
+  // Per https://tools.ietf.org/html/rfc7230#section-3.3.1 Envoy should reject
+  // transfer-codings it does not understand.
+  if (headers->TransferEncoding()) {
+    absl::string_view encoding = headers->TransferEncoding()->value().getStringView();
+    if (Runtime::runtimeFeatureEnabled(
+            "envoy.reloadable_features.reject_unsupported_transfer_encodings") &&
+        !absl::EqualsIgnoreCase(encoding, Headers::get().TransferEncodingValues.Identity) &&
+        !absl::EqualsIgnoreCase(encoding, Headers::get().TransferEncodingValues.Chunked)) {
+      error_code_ = Http::Code::NotImplemented;
+      sendProtocolError(""); // fixfix
+      throw CodecProtocolException("http/1.1 protocol error: unsupported transfer encoding");
+    }
+  }
+
   // Handle the case where response happens prior to request complete. It's up to upper layer code
   // to disconnect the connection but we shouldn't fire any more events since it doesn't make
   // sense.
   if (active_request_) {
-    auto& headers = absl::get<RequestHeaderMapPtr>(headers_or_trailers_);
-    ENVOY_CONN_LOG(trace, "Server: onHeadersComplete size={}", connection_, headers->size());
     const char* method_string = http_method_str(static_cast<http_method>(parser_.method));
 
     // Inform the response encoder about any HEAD method, so it can set content
@@ -858,11 +859,11 @@ RequestEncoder& ClientConnectionImpl::newStream(ResponseDecoder& response_decode
   return *request_encoder_;
 }
 
-void ClientConnectionImpl::onEncodeHeaders(const HeaderMap& headers) {
+/*void ClientConnectionImpl::onEncodeHeaders(const HeaderMap& headers) {
   if (headers.Method()->value() == Headers::get().MethodValues.Head.c_str()) {
     pending_responses_.back().head_request_ = true;
   }
-}
+}fixfix*/
 
 int ClientConnectionImpl::onHeadersComplete() {
   // Handle the case where the client is closing a kept alive connection (by sending a 408

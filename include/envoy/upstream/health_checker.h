@@ -58,7 +58,7 @@ public:
 
 using HealthCheckerSharedPtr = std::shared_ptr<HealthChecker>;
 
-std::ostream& operator<<(std::ostream& out, HealthState state);
+std::ostream& operator<<(std::ostream& out, Upstream::HealthState state);
 std::ostream& operator<<(std::ostream& out, HealthTransition changed_state);
 
 /**

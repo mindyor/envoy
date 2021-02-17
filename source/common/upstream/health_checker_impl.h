@@ -129,16 +129,6 @@ private:
       HttpActiveHealthCheckSession& parent_;
     };
 
-    class HttpConnectionCallbackImpl : public Http::ConnectionCallbacks {
-    public:
-      HttpConnectionCallbackImpl(HttpActiveHealthCheckSession& parent) : parent_(parent) {}
-      // Http::ConnectionCallbacks
-      void onGoAway(Http::GoAwayErrorCode error_code) override { parent_.onGoAway(error_code); }
-
-    private:
-      HttpActiveHealthCheckSession& parent_;
-    };
-
     ConnectionCallbackImpl connection_callback_impl_{*this};
     HttpConnectionCallbackImpl http_connection_callback_impl_{*this};
     HttpHealthCheckerImpl& parent_;
